@@ -1,0 +1,377 @@
+---
+AWSTemplateFormatVersion: '2010-09-09'
+
+Parameters:
+  Environment:
+    AllowedValues: [DEV, QA, PROD]
+    ConstraintDescription: must specify Prod, Dev, or QA.
+    Default: DEV
+    Description: Deployment Environment.
+    Type: String
+
+  AMI:
+    Default: None
+    Description: Replace with the Amazon Linux 2 AMI
+    Type: String
+  
+  KeyName: 
+    ConstraintDescription: must be the name of an existing EC2 KeyPair.
+    Description: Name of an existing EC2 KeyPair to enable SSH access to the instance.
+    Type: AWS::EC2::KeyPair::KeyName
+
+  DbUsername:
+    Type: String
+    Default: admin1234
+
+  DbPassword:
+    Type: String
+    Default: admin1234
+
+Resources:
+  VPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: 10.0.0.0/16
+      EnableDnsSupport: true
+      EnableDnsHostnames: true
+      InstanceTenancy: default
+      Tags:
+        - Key: Name
+          Value: MyVPC
+
+  InternetGateway:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+          - Key: Name
+            Value: MyInternetGateway
+
+  VPCGatewayAttachment:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId: !Ref VPC
+      InternetGatewayId: !Ref InternetGateway
+
+  PublicSubnet:
+    Type: AWS::EC2::Subnet
+    Properties:
+      CidrBlock: 10.0.0.0/24
+      VpcId: !Ref VPC
+      MapPublicIpOnLaunch: true
+      AvailabilityZone: !Select [ 0, !GetAZs '' ]
+      Tags:
+        - Key: Name
+          Value: MyPublicSubnet
+
+  PrivateSubnet1:
+    Type: AWS::EC2::Subnet
+    Properties:
+      CidrBlock: 10.0.1.0/24
+      VpcId: !Ref VPC
+      AvailabilityZone: !Select [ 0, !GetAZs '' ]
+      MapPublicIpOnLaunch: false
+      Tags:
+        - Key: Name
+          Value: MyPrivateSubnet1
+  
+  PrivateSubnet2:
+    Type: AWS::EC2::Subnet
+    Properties:
+      CidrBlock: 10.0.2.0/24
+      VpcId: !Ref VPC
+      AvailabilityZone: !Select [ 1, !GetAZs '' ]
+      MapPublicIpOnLaunch: false
+      Tags:
+        - Key: Name
+          Value: MyPrivateSubnet2
+
+  PrivateSubnet3:
+    Type: AWS::EC2::Subnet
+    Properties:
+      CidrBlock: 10.0.2.0/24
+      VpcId: !Ref VPC
+      AvailabilityZone: !Select [ 1, !GetAZs '' ]
+      MapPublicIpOnLaunch: false
+      Tags:
+        - Key: Name
+          Value: MyPrivateSubnet3
+
+  NATGateway:
+    Type: AWS::EC2::NatGateway
+    Properties:
+      AllocationId: !GetAtt NATGatewayEIP.AllocationId
+      SubnetId: !Ref PublicSubnet
+
+  NATGatewayEIP:
+    Type: AWS::EC2::EIP
+    Properties:
+      Domain: vpc
+
+  PublicRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+
+  PrivateRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+
+  PublicRoute:
+    Type: AWS::EC2::Route
+    DependsOn: VPCGatewayAttachment
+    Properties:
+      GatewayId: !Ref InternetGateway
+      DestinationCidrBlock: 0.0.0.0/0
+      RouteTableId: !Ref PublicRouteTable
+
+  PrivateRoute:
+    Type: AWS::EC2::Route
+    DependsOn: NATGateway
+    Properties:
+      DestinationCidrBlock: 0.0.0.0/0
+      NatGatewayId: !Ref NATGateway
+      RouteTableId: !Ref PrivateRouteTable
+
+  PublicSubnetRouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      SubnetId: !Ref PublicSubnet
+
+  PrivateSubnet1RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref PrivateRouteTable
+      SubnetId: !Ref PrivateSubnet1
+
+  PrivateSubnet2RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref PrivateRouteTable
+      SubnetId: !Ref PrivateSubnet2
+  
+  PrivateSubnet3RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref PrivateRouteTable
+      SubnetId: !Ref PrivateSubnet3
+
+  # Security group for the web server
+  WebServerSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Allow HTTP traffic from the Internet and SSH access
+      VpcId: !Ref VPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: 0.0.0.0/0
+
+  # EC2 instance for the web server
+  WebServerInstance:
+    Type: AWS::EC2::Instance
+    DependsOn: AppServerInstance
+    Properties:
+      # Replace with the Amazon Linux 2 AMI
+      ImageId: !Ref AMI
+      InstanceType: t2.micro
+      SecurityGroupIds:
+        - !Ref WebServerSecurityGroup
+      SubnetId: !Ref PublicSubnet
+      KeyName: !Ref KeyName
+      UserData:
+        # Install and start Nginx
+        Fn::Base64: |
+          #!/bin/bash
+          sudo yum update -y
+          sudo yum install -y aws-cfn-bootstrap
+          sudo amazon-linux-extras install nginx1 -y
+          sudo systemctl enable nginx
+          sudo systemctl start nginx
+      Tags:
+        - Key: Name
+          Value: !Sub '${Environment}-WebServer'
+
+  # Security group for the application server
+  AppServerSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Allow HTTP traffic from the web server, SSH access and private network access
+      VpcId: !Ref VPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 8080
+          ToPort: 8080
+          SourceSecurityGroupId: !Ref WebServerSecurityGroup
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 5432
+          ToPort: 5432
+          SourceSecurityGroupId: !Ref DatabaseSecurityGroup
+
+  # EC2 instance for the application server
+  AppServerInstance:
+    Type: AWS::EC2::Instance
+    DependsOn: Database
+    Properties:
+      # Replace with the Amazon Linux 2 AMI
+      ImageId: !Ref AMI
+      InstanceType: t2.micro
+      SecurityGroupIds:
+        - !Ref AppServerSecurityGroup
+      SubnetId: !Ref PrivateSubnet3
+      KeyName: !Ref KeyName
+      UserData:
+        # Install and start Tomcat
+        Fn::Base64: !Sub |
+          #!/bin/bash
+          sudo yum update -y
+          sudo yum install -y aws-cfn-bootstrap
+
+          # Install Tomcat
+          sudo yum install -y tomcat
+
+          # Install the PostgreSQL JDBC driver
+          sudo yum install -y postgresql
+
+          # Connect to the database and create the table
+          export PGPASSWORD=${DbPassword}
+          psql -h $(aws rds describe-db-instances --db-instance-identifier mydatabase --query 'DBInstances[0].Endpoint.Address' --output text) -d mydatabase -U ${DbUsername} -c "CREATE TABLE busdetails (id serial PRIMARY KEY, busname VARCHAR(255) not null, busstop VARCHAR(255) not null);" 
+
+          # Insert data into the table
+          psql -h $(aws rds describe-db-instances --db-instance-identifier mydatabase --query 'DBInstances[0].Endpoint.Address' --output text) -d mydatabase -U ${DbUsername} -c "INSERT INTO busdetails (busname, busstop) VALUES ('Sakal Sandhya', 'Point A'), ('Skyline', 'Point B'), ('Highline', 'Point C');"
+
+          # Create the JDBC resource in Tomcat's context.xml file
+          echo "<Context> <Resource name="jdbc/mydatabase" auth="Container" type="javax.sql.DataSource" username="${DbUsername}" password="${DbPassword}" driverClassName="org.postgresql.Driver" url="jdbc:postgresql://$(aws rds describe-db-instances --db-instance-identifier mydatabase --query 'DBInstances[0].Endpoint.Address' --output text):5432/mydatabase" maxTotal="100" maxIdle="30" maxWaitMillis="10000"/> </Context>" >> /usr/share/tomcat/conf/context.xml
+
+          # Build the Java servlet
+          sudo yum install -y java-1.8.0-openjdk-devel
+          mkdir -p /usr/src/myapp
+          
+          sudo cat << EOF > /usr/src/myapp/DataServlet.java
+          import java.io.IOException;
+          import java.io.PrintWriter;
+          import java.sql.Connection;
+          import java.sql.ResultSet;
+          import java.sql.Statement;
+          import javax.naming.InitialContext;
+          import javax.servlet.ServletException;
+          import javax.servlet.http.HttpServlet;
+          import javax.servlet.http.HttpServletRequest;
+          import javax.servlet.http.HttpServletResponse;
+          import javax.servlet.annotation.WebServlet;
+          import javax.sql.DataSource;
+
+          @WebServlet(name = "DataServlet", urlPatterns = {"/","/*"})
+          public class DataServlet extends HttpServlet {
+            @Override
+            protected void doGet(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
+              response.setContentType("text/html;charset=UTF-8");
+              PrintWriter out = response.getWriter();
+              out.println("<!DOCTYPE html>");
+              out.println("<html>");
+              out.println("<head>");
+              out.println("<title>Data Servlet</title>");
+              out.println("</head>");
+              out.println("<body>");
+              out.println("<h1>Data Servlet</h1>");
+              out.println("<table border='1'>");
+              out.println("<tr><th>ID</th><th>BusName</th><th>BusStop</th></tr>");
+              try {
+                // Look up the JDBC resource
+                InitialContext cxt = new InitialContext();
+                DataSource ds = (DataSource) cxt.lookup( "java:/comp/env/jdbc/mydatabase" );
+                // Get a connection to the database
+                Connection con = ds.getConnection();
+                // Use the connection to execute a query and process the results
+                Statement stmt = con.createStatement();
+                ResultSet rs = stmt.executeQuery("SELECT * FROM busdetails");
+                while (rs.next()) {
+                  int id = rs.getInt("id");
+                  String busname = rs.getString("busname");
+                  String busstop = rs.getString("busstop");
+                  out.println("<tr><td>" + id + "</td><td>" + busname + "</td><td>" + busstop + "</td></tr>");
+                }
+                // Close the connection
+                con.close();
+              } catch (Exception e) {
+                e.printStackTrace();
+              }
+              out.println("</table>");
+              out.println("</body>");
+              out.println("</html>");
+            }
+          }
+
+          EOF
+
+          # Compile the Java servlet
+          javac -cp "/usr/share/tomcat/lib/*" /usr/src/myapp/DataServlet.java
+
+          # Create the servlet .war file
+          jar -cvf /usr/src/myapp/DataServlet.war -C /usr/src/myapp .
+
+          # Deploy the servlet .war file to Tomcat
+          cp /usr/src/myapp/DataServlet.war /usr/share/tomcat/webapps
+
+          # Start Tomcat
+          sudo systemctl enable tomcat
+          sudo systemctl start tomcat
+      Tags:
+        - Key: Name
+          Value: !Sub '${Environment}-AppServer'
+
+  # Security group for the database server
+  DatabaseSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Allow communication with the application server
+      VpcId: !Ref VPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 5432
+          ToPort: 5432
+          SourceSecurityGroupId: !Ref AppServerSecurityGroup
+
+  DBSubnetGroup:
+    Type: AWS::RDS::DBSubnetGroup
+    Properties:
+      DBSubnetGroupName: !Join
+        - ''
+        - - !Ref 'AWS::StackName'
+          - -db-subnet-group
+      DBSubnetGroupDescription: Subnets available for the RDS DB instance
+      SubnetIds:
+        - !Ref PrivateSubnet1
+        - !Ref PrivateSubnet2
+
+  # RDS instance for the database server
+  Database:
+    Type: AWS::RDS::DBInstance
+    Properties:
+      DBName: mydatabase
+      DBInstanceIdentifier: mydatabase
+      AllocatedStorage: 20
+      DBInstanceClass: db.t3.micro
+      Engine: postgres
+      MasterUsername: !Ref DbUsername
+      MasterUserPassword: !Ref DbPassword
+      VPCSecurityGroups:
+        - !Ref DatabaseSecurityGroup
+      DBSubnetGroupName: !Ref DBSubnetGroup
+      PubliclyAccessible: false
+      StorageType: gp2
+      Tags:
+        - Key: Name
+          Value: MyDBInstance
+
+

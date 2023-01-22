@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Welcome to nginx!</title>
+    <style>
+        html { color-scheme: light dark; }
+        body { 
+            width: 35em; 
+            margin: 0 auto;
+            font-family: Tahoma, Verdana, Arial, sans-serif; 
+        }
+        .button-85 {
+            padding: 0.6em 2em;
+            border: none;
+            outline: none;
+            color: rgb(255, 255, 255);
+            background: #111;
+            cursor: pointer;
+            position: relative;
+            z-index: 0;
+            border-radius: 10px;
+            user-select: none;
+            -webkit-user-select: none;
+            touch-action: manipulation;
+        }
+
+        .button-85:before {
+            content: "";
+            background: linear-gradient(
+                45deg,
+                #ff0000,
+                #ff7300,
+                #fffb00,
+                #48ff00,
+                #00ffd5,
+                #002bff,
+                #7a00ff,
+                #ff00c8,
+                #ff0000
+            );
+            position: absolute;
+            top: -2px;
+            left: -2px;
+            background-size: 400%;
+            z-index: -1;
+            filter: blur(5px);
+            -webkit-filter: blur(5px);
+            width: calc(100% + 4px);
+            height: calc(100% + 4px);
+            animation: glowing-button-85 20s linear infinite;
+            transition: opacity 0.3s ease-in-out;
+            border-radius: 10px;
+        }
+
+        @keyframes glowing-button-85 {
+            0% {
+                background-position: 0 0;
+            }
+            50% {
+                background-position: 400% 0;
+            }
+            100% {
+                background-position: 0 0;
+            }
+        }
+
+        .button-85:after {
+            z-index: -1;
+            content: "";
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            background: #222;
+            left: 0;
+            top: 0;
+            border-radius: 10px;
+        }
+    </style>
+  </head>
+  <body>
+    <h1 style="font-size: 48px;"><strong>Welcome to NginX !</strong></h1>
+    <h2><strong><em>Let's send a REQUEST :)</em></strong></h2>
+    <div id="response"></div>
+    <button class="button-85" role="button" id="btn-send-request">Send Request</button>
+    <script>
+      document.getElementById("btn-send-request").addEventListener("click", function() {
+        fetch("http://PUBLIC_IP_OF_APP_SERVER:8080/")
+          .then(response => response.text())
+          .then(text => {
+            document.getElementById("response").innerHTML = text;
+          });
+      });
+    </script>
+    <h3><em>Thank you for using NginX.</em></h3>
+    <img src="https://cdn.dribbble.com/users/330915/screenshots/5676354/bus_b.gif" alt="A bus image" width="500" height="300">
+  </body>
+</html>
