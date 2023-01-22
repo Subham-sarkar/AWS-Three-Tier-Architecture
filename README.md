@@ -48,7 +48,7 @@ The userdata also installs PostgreSQl JDBC driver and uses ‘psql’ command to
 
 We can add Application Load balancer and Amazon Autoscaling group to scale and improve the architecture. We should also use database scaling techniques.
 
-<img width="511" alt="Screenshot_20230119_140238" src="https://user-images.githubusercontent.com/45092750/213896814-9d735c10-4849-4aba-a16b-ce8fb129ac80.png">
+<img width="700" alt="Screenshot_20230119_140238" src="https://user-images.githubusercontent.com/45092750/213896814-9d735c10-4849-4aba-a16b-ce8fb129ac80.png">
 
 ## Getting Started
 
