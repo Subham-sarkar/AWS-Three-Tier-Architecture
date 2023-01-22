@@ -1,6 +1,6 @@
 # AWS-Three-Tier-Architecture
 
-Createdd an Three-Tier Architecture that includes a web server with Nginx, an application server with a Java service on Tomcat, and a database server with PostgreSQL using AWS resources.
+Created an Three-Tier Architecture that includes a web server with Nginx, an application server with a Java service on Tomcat, and a database server with PostgreSQL using AWS cloud formation.
 
 ## Architecture at a Glance
 
