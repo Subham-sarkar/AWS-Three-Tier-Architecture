@@ -4,7 +4,7 @@ Createdd an Three-Tier Architecture that includes a web server with Nginx, an ap
 
 ## Architecture at a Glance
 
-![Alt text](../../Assignment/AWS%20Architecture.png)
+![AWS Architecture](https://user-images.githubusercontent.com/45092750/213896830-88186fc9-ef77-4464-adca-800176372c0c.png)
 
 The components of this architecture includes a web server with NginX, an application server with tomcat and a database server with PostgreSQL.
 
@@ -30,13 +30,13 @@ a security group for the database server with rules to allow traffic only from t
 
 In the web server, the nginx package is installed in the userdata. We need to configure the web server to proxy requests to the application server. This can be done by modifying the Nginx configuration to include a reverse proxy directive.
 
-![Alt text](../../Assignment/Screenshot%202023-01-22%20065759.png)
+<img width="402" alt="Screenshot 2023-01-22 065759" src="https://user-images.githubusercontent.com/45092750/213896778-4086ddab-d228-4ecc-a19b-ac23959080b3.png">
 
 Once you have added the location block to the Nginx configuration file, you need to restart the server for the changes to take effect.  ‘sudo systemctl restart nginx‘
 
 Lastly, I have provided a custom index.html file. Modify the /use/share/nginx/html/index.html file with that one.
 
-![Alt text](../../../Pictures/Screenshots/Screenshot_20230108_201941.png)
+<img width="809" alt="Screenshot_20230108_201941" src="https://user-images.githubusercontent.com/45092750/213896802-e1481623-6830-4291-8224-b6fd9b82029d.png">
 
 ## Create Java Servlet
 
@@ -48,7 +48,7 @@ The userdata also installs PostgreSQl JDBC driver and uses ‘psql’ command to
 
 We can add Application Load balancer and Amazon Autoscaling group to scale and improve the architecture. We should also use database scaling techniques.
 
-![Alt text](../../../Pictures/Screenshots/Screenshot_20230119_140238.png)
+<img width="900" alt="Screenshot_20230119_140238" src="https://user-images.githubusercontent.com/45092750/213896814-9d735c10-4849-4aba-a16b-ce8fb129ac80.png">
 
 ## Getting Started
 
