@@ -69,3 +69,5 @@ We can add Application Load balancer and Amazon Autoscaling group to scale and i
     * Enter the public IP of the web server in a browser. The web page will appear.
     * Hit the button to send request to the tomcat server at port 8080.
     * The Java servlet in the tomcat server will return the data from database server.
+
+END
